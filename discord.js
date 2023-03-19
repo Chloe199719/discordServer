@@ -70,7 +70,7 @@ client.on("messageCreate", async (message) => {
     const data = await axios({
       method: "Get",
       url: "https://api.api-ninjas.com/v1/quotes",
-      headers: { "X-Api-Key": "fvcuwlQtILhZWcBCZcMBKg==UUudBUdnb8X1m5fU" },
+      headers: { "X-Api-Key": process.env.QUOTES },
     });
 
     console.log(message.content);
@@ -97,7 +97,7 @@ client.on("interactionCreate", async (interaction) => {
     const data = await axios({
       method: "Get",
       url: "https://api.api-ninjas.com/v1/quotes",
-      headers: { "X-Api-Key": "fvcuwlQtILhZWcBCZcMBKg==UUudBUdnb8X1m5fU" },
+      headers: { "X-Api-Key": process.env.QUOTES },
     });
     interaction.reply(`${data.data[0].quote} \nauthor: ${data.data[0].author}`);
   }
