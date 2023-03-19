@@ -1,0 +1,27 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model contexts {
+  id      String   @id @default(cuid())
+  role    String
+  content String
+  users   users    @relation(fields: [userId], references: [discordID], onDelete: Cascade)
+  userId  String
+  created DateTime @default(now())
+}
+
+model users {
+  id        String     @id @default(cuid())
+  name      String
+  discordID String     @unique
+  contexts  contexts[]
+}

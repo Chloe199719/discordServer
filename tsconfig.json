@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "esnext",
+    "lib": ["es6", "esnext", "dom"],
+    "allowJs": true,
+    "outDir": "build",
+    "rootDir": "src",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    // Tell ts-node CLI to install the --loader automatically
+    "esm": true
+  },
+  "exclude": ["node_modules", "commands"],
+  "include": ["src"]
+}
