@@ -73,10 +73,17 @@ client.once(Events.ClientReady, (c: any) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 client.on("messageCreate", async (message: any) => {
+  //  Required the bot to bge @ed to reply or in a dm
   if (!message.mentions.has(client.user) && message.guild !== null) return;
+
+  // Trims the message to remove the mention
   const userMessage = message.content.replace(/<@(.*?)>/, "").trim();
 
+  // Only Replies to User Messages
   if (message.author.bot) return;
+
+  //if the user types quote it will send a quote
+
   if (userMessage === "quote") {
     const data = await axios({
       method: "Get",
@@ -87,6 +94,9 @@ client.on("messageCreate", async (message: any) => {
     message.reply(`${data.data[0].quote} \nauthor: ${data.data[0].author}`);
     return;
   } else {
+    // anything else will be sent to the ai
+
+    //Finds the user in the database and if they dont exist it will create them
     const user = await prisma.users.findUnique({
       where: {
         discordID: message.author.id,
@@ -99,6 +109,7 @@ client.on("messageCreate", async (message: any) => {
       return { role: context.role, content: context.content };
     });
 
+    // if the user does not exist it will create them
     if (!user) {
       const createuser = await prisma.users.create({
         data: {
@@ -120,8 +131,10 @@ client.on("messageCreate", async (message: any) => {
         return { role: context.role, content: context.content };
       });
     }
+    //Adds the user message to the context
     context?.push({ role: "user", content: userMessage });
 
+    //creates the context in the database
     const sendUsePromt = await prisma.contexts.create({
       data: {
         content: userMessage,
@@ -130,11 +143,12 @@ client.on("messageCreate", async (message: any) => {
       },
     });
 
-    // messageAi.push({ role: "user", content: userMessage });
+    // sends the context to the ai
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo" /* @ts-expect-error */,
       messages: context,
     });
+    // store the ai response in the database
     const sendChatreply = await prisma.contexts.create({
       data: {
         content: completion.data.choices[0].message?.content!,
@@ -142,16 +156,21 @@ client.on("messageCreate", async (message: any) => {
         userId: message.author.id,
       },
     });
-    // messageAi.push(completion.data.choices[0].message!);
+
+    // sends the ai response to the user
     message.reply(completion.data.choices[0].message);
     // console.log(messageAi);
   }
 });
 client.on("interactionCreate", async (interaction: any) => {
+  // If the interaction isn't a slash command, return
   if (!interaction.isCommand()) return;
+
+  // If the command is "ping", reply with "Pong!"
   if (interaction.commandName === "ping") {
     await interaction.reply("Pong!");
   }
+  // If the command is "quote", reply with a Quote  from the api
   if (interaction.commandName === "quote") {
     const data = await axios({
       method: "Get",
@@ -160,6 +179,7 @@ client.on("interactionCreate", async (interaction: any) => {
     });
     interaction.reply(`${data.data[0].quote} \nauthor: ${data.data[0].author}`);
   }
+  // If the command is "reset", reset the context for the user and reply with "Context Rested"
   if (interaction.commandName === "reset") {
     await prisma.users.delete({
       where: {
