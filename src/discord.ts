@@ -73,93 +73,96 @@ client.once(Events.ClientReady, (c: any) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 client.on("messageCreate", async (message: any) => {
-  //  Required the bot to bge @ed to reply or in a dm
-  if (!message.mentions.has(client.user) && message.guild !== null) return;
+  try {
+    //  Required the bot to bge @ed to reply or in a dm
+    if (!message.mentions.has(client.user) && message.guild !== null) return;
 
-  // Trims the message to remove the mention
-  const userMessage = message.content.replace(/<@(.*?)>/, "").trim();
+    // Trims the message to remove the mention
+    const userMessage = message.content.replace(/<@(.*?)>/, "").trim();
 
-  // Only Replies to User Messages
-  if (message.author.bot) return;
+    // Only Replies to User Messages
+    if (message.author.bot) return;
+    //if the user types quote it will send a quote
+    if (userMessage === "quote") {
+      const data = await axios({
+        method: "Get",
+        url: "https://api.api-ninjas.com/v1/quotes",
+        headers: { "X-Api-Key": process.env.QUOTE },
+      });
 
-  //if the user types quote it will send a quote
+      message.reply(`${data.data[0].quote} \nauthor: ${data.data[0].author}`);
+      return;
+    } else {
+      // anything else will be sent to the ai
 
-  if (userMessage === "quote") {
-    const data = await axios({
-      method: "Get",
-      url: "https://api.api-ninjas.com/v1/quotes",
-      headers: { "X-Api-Key": process.env.QUOTE },
-    });
-
-    message.reply(`${data.data[0].quote} \nauthor: ${data.data[0].author}`);
-    return;
-  } else {
-    // anything else will be sent to the ai
-
-    //Finds the user in the database and if they dont exist it will create them
-    const user = await prisma.users.findUnique({
-      where: {
-        discordID: message.author.id,
-      },
-      include: {
-        contexts: true,
-      },
-    });
-    let context = user?.contexts.map((context) => {
-      return { role: context.role, content: context.content };
-    });
-
-    // if the user does not exist it will create them
-    if (!user) {
-      const createuser = await prisma.users.create({
-        data: {
+      //Finds the user in the database and if they dont exist it will create them
+      const user = await prisma.users.findUnique({
+        where: {
           discordID: message.author.id,
-          name: message.author.username,
-          contexts: {
-            create: {
-              content: `You give Very Calm awsners`,
-              role: "system",
-            },
-          },
         },
-        select: {
-          discordID: true,
-          contexts: { orderBy: [{ created: "asc" }] },
+        include: {
+          contexts: true,
         },
       });
-      context = createuser.contexts.map((context) => {
+      let context = user?.contexts.map((context) => {
         return { role: context.role, content: context.content };
       });
+
+      // if the user does not exist it will create them
+      if (!user) {
+        const createuser = await prisma.users.create({
+          data: {
+            discordID: message.author.id,
+            name: message.author.username,
+            contexts: {
+              create: {
+                content: `You give Very Calm awsners`,
+                role: "system",
+              },
+            },
+          },
+          select: {
+            discordID: true,
+            contexts: { orderBy: [{ created: "asc" }] },
+          },
+        });
+        context = createuser.contexts.map((context) => {
+          return { role: context.role, content: context.content };
+        });
+      }
+      //Adds the user message to the context
+      context?.push({ role: "user", content: userMessage });
+
+      //creates the context in the database
+      const sendUsePromt = await prisma.contexts.create({
+        data: {
+          content: userMessage,
+          role: `user`,
+          userId: message.author.id,
+        },
+      });
+
+      // sends the context to the ai
+      const completion = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo" /* @ts-expect-error */,
+        messages: context,
+      });
+      // store the ai response in the database
+      const sendChatreply = await prisma.contexts.create({
+        data: {
+          content: completion.data.choices[0].message?.content!,
+          role: completion.data.choices[0].message?.role!,
+          userId: message.author.id,
+        },
+      });
+
+      // sends the ai response to the user
+      message.reply(completion.data.choices[0].message);
+      // console.log(messageAi);
     }
-    //Adds the user message to the context
-    context?.push({ role: "user", content: userMessage });
-
-    //creates the context in the database
-    const sendUsePromt = await prisma.contexts.create({
-      data: {
-        content: userMessage,
-        role: `user`,
-        userId: message.author.id,
-      },
-    });
-
-    // sends the context to the ai
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo" /* @ts-expect-error */,
-      messages: context,
-    });
-    // store the ai response in the database
-    const sendChatreply = await prisma.contexts.create({
-      data: {
-        content: completion.data.choices[0].message?.content!,
-        role: completion.data.choices[0].message?.role!,
-        userId: message.author.id,
-      },
-    });
-
-    // sends the ai response to the user
-    message.reply(completion.data.choices[0].message);
-    // console.log(messageAi);
+  } catch (error: any) {
+    console.log(error);
+    message.reply(`There was an error`);
   }
 });
 client.on("interactionCreate", async (interaction: any) => {
