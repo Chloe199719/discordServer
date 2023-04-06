@@ -155,10 +155,23 @@ client.on("messageCreate", async (message: any) => {
           userId: message.author.id,
         },
       });
-
-      // sends the ai response to the user
-      message.reply(completion.data.choices[0].message);
-      // console.log(messageAi);
+      console.log(completion.data.choices[0].message?.content.length!);
+      if (completion.data.choices[0].message?.content.length! < 2000) {
+        await message.reply(completion.data.choices[0].message);
+      } else {
+        const arr = completion.data.choices[0].message?.content.split("");
+        while (arr?.length! > 0) {
+          const arr2 = arr?.splice(0, 2000);
+          const str = arr2?.join("");
+          await message.reply(str);
+        }
+      }
+      // // sends the ai response to the user
+      // message.reply(
+      //   completion.data.choices[0].message?.content.length.toString()
+      // );
+      // await message.reply(completion.data.choices[0].message);
+      // // console.log(messageAi);
     }
   } catch (error: any) {
     console.log(error);
